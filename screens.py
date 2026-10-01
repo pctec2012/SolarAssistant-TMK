@@ -34,6 +34,10 @@ _EN_REPLACEMENTS = {
     "Počasí": "Weather", "Teplota": "Temperature", "Historie": "History",
     "Upozornění": "Alerts", "Chyby": "Errors", "Výpadky": "Outages",
     "Nastavení": "Settings", "O aplikaci": "About", "Volná paměť": "Free memory",
+    "ŽIVOTNOST": "LIFETIME", "Životnost": "Lifetime",
+    "FV ikona nad": "PV icon above",
+    "VYSOKÉ NAPĚTÍ PANELŮ": "HIGH PANEL VOLTAGE",
+    "Zdraví baterie": "Battery health", "Odhad výměny": "Replacement estimate",
     "Vráceno": "Repaid", "Provoz od": "Operating since", "Odhad do splacení": "Estimated payback",
     "čas běhu": "uptime", "Signál": "Signal", "Wi-Fi síť": "Wi-Fi network",
     "OTA název": "OTA name", "RESTART ZAŘÍZENÍ": "RESTART DEVICE",
@@ -56,10 +60,29 @@ pv_power, load_power, grid_power, batt_power = 1840, 620, 0, 1180
 soc, batt_v, batt_a, capacity = 78, 27.4, 43.1, 9.6
 grid_v, grid_hz, ac_v, ac_hz = 238, 50.0, 230, 50.0
 load_pct, sys_power, bus_v = 26, 45, 404
-inv_temp, max_va, pv_v, pv_a = 58.2, 3000, 27.2, 67.6
+inv_temp, max_va, pv_v, pv_a = 58.2, 3000, 32.2, 67.6
+
+# Bitmap preview uses the same crop, size and card background as the firmware.
+# EN: Preview uses the same crop, size and card background as the firmware.
+_pv_source = Image.open(os.path.join(D, "assets", "pv-disconnected-source.png")).convert("RGBA")
+_pv_alpha = _pv_source.getchannel("A")
+_pv_bounds = _pv_alpha.point(lambda value: 255 if value >= 200 else 0).getbbox()
+_pv_mark = _pv_source.crop(_pv_bounds).resize((40, 38), Image.Resampling.LANCZOS)
+PV_DISCONNECTED_ICON = Image.new("RGBA", (40, 38), C_CARD + (255,))
+PV_DISCONNECTED_ICON.alpha_composite(_pv_mark)
+
+
+def pv_disconnected_badge(s):
+    x, y = 136, 307
+    s.rrect(x, y + 2, 48, 48, 8, C_TRACK)
+    s.rrect(x, y, 48, 46, 8, C_CARD)
+    s.rrect(x, y, 48, 46, 8, C_LINE, fill=False)
+    s.line(x + 12, y + 1, x + 35, y + 1, C_LOAD)
+    s.im.paste(PV_DISCONNECTED_ICON.convert("RGB"), (x + 4, y + 4))
 load_va, float_v, absorp_v, max_chg = 620, 27.3, 28.2, 80
 cloud, irrad, temp_out, wind = 35, 612, 18.4, 10.9
 pv_gen, pv_rem, pv_prog, pv_pred = 4.33, 2.45, 63, 1620
+year_saved = 3483
 day_load, day_bin, day_bout, saved = 2.10, 2.35, 1.42, 21
 peak_pv, max_load, min_soc = 2260, 1840, 62
 sunrise, sunset = "06:42", "19:18"
@@ -69,16 +92,16 @@ TITLES = {
  0:"SolarAssistant-TMK", 1:"BATERIE", 2:"DOBĚH BATERIE", 3:"SOLÁR", 4:"SÍŤ A ZÁTĚŽ",
  5:"MĚNIČ", 6:"POČASÍ", 7:"GRAFY", 8:"TEPLOTY", 9:"HISTORIE", 10:"ÚSPORY",
  11:"PREDIKCE ÚSPOR", 12:"DNES A VČERA", 13:"NÁVRATNOST", 14:"CHYBY A VÝPADKY",
- 15:"UPOZORNĚNÍ", 16:"NASTAVENÍ", 17:"NASTAVENÍ 2", 18:"O APLIKACI"}
+ 15:"UPOZORNĚNÍ", 16:"NASTAVENÍ", 17:"NASTAVENÍ 2", 18:"O APLIKACI", 19:"ŽIVOTNOST"}
 if ENGLISH:
     TITLES = {0:"SolarAssistant-TMK", 1:"BATTERY", 2:"BATTERY RUNTIME", 3:"SOLAR", 4:"GRID & LOAD",
               5:"INVERTER", 6:"WEATHER", 7:"CHARTS", 8:"TEMPERATURES", 9:"HISTORY", 10:"SAVINGS",
               11:"SAVINGS FORECAST", 12:"TODAY & YESTERDAY", 13:"PAYBACK", 14:"ERRORS & OUTAGES",
-              15:"ALERTS", 16:"SETTINGS", 17:"SETTINGS 2", 18:"ABOUT"}
+              15:"ALERTS", 16:"SETTINGS", 17:"SETTINGS 2", 18:"ABOUT", 19:"LIFETIME"}
 
 PAGE_ICONS = {1:3, 2:8, 3:1, 4:2, 5:0, 6:6, 7:7, 8:5, 9:8,
               10:9, 11:10, 12:14, 13:15, 14:12, 15:13, 16:11,
-              17:11, 18:4}
+              17:11, 18:4, 19:3}
 
 HDR_H, NAV_Y, CONT_Y = 40, 432, 42
 
@@ -92,19 +115,8 @@ def chrome(s, idx):
     title_x = 46 if icon >= 0 else 8
     if icon >= 0:
         s.im.paste(UI_ICONS[icon], (0, 1))
-    if idx == 0:
-        s.txt(TITLES[idx], 8, 10, F13, C_TXT)
-        s.txt(clock, W - 26, 12, F13, C_TXT, "TR")
-    else:
-        wt = s.d.textlength(TITLES[idx], font=F13)
-        wc = s.d.textlength(clock, font=F13)
-        ws = s.d.textlength("za 12 s", font=F13)
-        lo, hi = title_x + wt + math.ceil(wc / 2) + 8, W - 34 - ws - math.ceil(wc / 2)
-        two_rows = lo > hi
-        cx = (46 + math.ceil(wc / 2) if icon >= 0 else 8 + math.ceil(wc / 2)) if two_rows else min(max(160, lo), hi)
-        s.txt(TITLES[idx], title_x, 1 if two_rows else 10, F13, C_TXT)
-        s.txt(clock, cx, 25 if two_rows else 19, F13, C_TXT, "MC")
-        s.txt("za 12 s", W - 26, 18 if two_rows else 12, F13, C_DIM, "TR")
+    s.txt(TITLES[idx], 8 if idx == 0 else title_x, 10, F13, C_TXT)
+    s.txt(clock, W - 26, 12, F13, C_TXT, "TR")
 
     s.rect(0, HDR_H - 6, W, 3, C_CARD)
     s.rect(0, HDR_H - 6, 128, 3, C_BATT)
@@ -155,12 +167,15 @@ def scr0():
     s.txt("Vyrobeno", 14, 206, F13, C_DIM)
     s.txt("%.2f kWh" % pv_rem, 306, 188, F13, C_TXT, "TR")
     s.txt("Zbývá", 306, 206, F13, C_DIM, "TR")
+    s.txt("Ušetřeno: %d Kč" % year_saved, 160, 218, F13, C_PV, "MC")
     s.bar(104, 192, 112, 12, pv_prog / 100.0, C_PV)
 
     s.gauge(84,  300, 62, 13, load_power, 2000, C_LOAD, kw(load_power), "Zátěž")
     s.gauge(236, 300, 62, 13, pv_power, 2000, C_PV, kw(pv_power), "Solární PV")
     s.gauge(84,  394, 62, 13, abs(grid_power), 2000, C_DIM, kw(grid_power), "Síť")
     s.gauge(236, 394, 62, 13, abs(batt_power), 1000, C_BATT, "+%.2f kW" % (batt_power/1000.0), "Baterie nabíjí")
+    if pv_v > 30:
+        pv_disconnected_badge(s)
     chrome(s, 0); return s
 
 
@@ -294,12 +309,12 @@ def scr5():
 # ============================== 6 MENIC ===================================
 def scr6():
     s = Screen()
-    s.gauge(160, 160, 100, 20, inv_temp, 100, C_PV, "%.1f °C" % inv_temp, "teplota měniče")
-    s.txt("Využití výkonu", 6, 186, F13, C_DIM)
-    s.txt("%d %%" % load_pct, 314, 186, F2, C_LOAD, "TR")
-    s.bar(6, 204, 308, 14, load_pct / 100.0, C_LOAD)
+    s.gauge(160, 145, 86, 18, inv_temp, 100, C_PV, "%.1f °C" % inv_temp, "teplota měniče")
+    s.txt("Využití výkonu", 6, 174, F13, C_DIM)
+    s.txt("%d %%" % load_pct, 314, 174, F2, C_LOAD, "TR")
+    s.bar(6, 192, 308, 14, load_pct / 100.0, C_LOAD)
 
-    sy, sh, sg = 228, 50, 5
+    sy, sh, sg = 212, 50, 5
     s.tile(6,   sy,           150, sh, "Max výkon", "%d VA" % max_va, C_TXT)
     s.tile(164, sy,           150, sh, "Zdánlivý výkon", "%d VA" % load_va, C_TXT)
     s.tile(6,   sy+sh+sg,     150, sh, "Bus napětí", "%d V" % bus_v, C_TXT)
@@ -307,9 +322,36 @@ def scr6():
     s.tile(6,   sy+2*(sh+sg), 150, sh, "Absorpce", "%.2f V" % absorp_v, C_BATT)
     s.tile(164, sy+2*(sh+sg), 150, sh, "Udržovací", "%.2f V" % float_v, C_BATT)
 
-    s.txt("Vlastní spotřeba měniče", 6, 396, F13, C_DIM)
-    s.txt("%d W" % sys_power, 314, 396, F13, C_TXT, "TR")
+    s.txt("Denní průměr účinnosti", 6, 380, F13, C_DIM)
+    s.txt("93 %", 314, 380, F13, C_TXT, "TR")
+    s.txt("Min / max", 6, 398, F13, C_DIM)
+    s.txt("88 / 97 %", 314, 398, F13, C_WEATH, "TR")
     chrome(s, 5); return s
+
+
+# ============================== ZIVOTNOST BATERII =========================
+def scr_battery_life():
+    s = Screen()
+    groups = [("A", "26.03.2022", 821, 86), ("B", "13.12.2022", 690, 88),
+              ("C", "14.03.2023", 644, 89), ("D", "18.09.2025", 185, 97)]
+    for i, (name, date, cycles, health) in enumerate(groups):
+        y = 48 + i * 58
+        s.panel(6, y, 308, 52)
+        s.txt("Skupina %s" % name, 14, y + 5, F13, C_DIM)
+        s.txt(date, 160, y + 5, F13, C_WEATH, "MC")
+        s.txt("%d / 6000" % cycles, 306, y + 5, F13, C_TXT, "TR")
+        s.txt("Výměna %d" % (2041 if name in ("A", "B", "C") else 2042), 14, y + 20, F13, C_DIM)
+        s.bar(14, y + 44, 210, 5, cycles / 6000.0, C_BATT)
+        s.txt("%d %%" % health, 306, y + 17, F13, C_TXT, "TR")
+    s.panel(6, 294, 308, 60)
+    s.txt("Skupina A", 160, 304, F13, C_TXT, "MC")
+    for x, w in [(12, 88), (112, 96), (220, 88)]:
+        s.rrect(x, 316, w, 32, 7, C_CARD)
+        s.rrect(x, 316, w, 32, 7, C_PV if x != 112 else C_LINE, fill=False)
+    s.txt("-1", 56, 332, F6, C_PV, "MC")
+    s.txt("1x", 160, 332, F13, C_DIM, "MC")
+    s.txt("+1", 264, 332, F6, C_PV, "MC")
+    chrome(s, 19); return s
 
 
 # ============================== 7 GRAFY ===================================
@@ -323,18 +365,21 @@ def scr7():
     GR_L, GR_W, X0, STEP = 30, 288, 31, 2
     now = 86          # 14:20
 
-    def frame(gy, gh, title, right, col):
+    def frame(gy, gh, title, right, col, width=288, narrow=False):
+        def graph_x(slot):
+            return GR_L + 1 + int(slot * (width - 3) / 143) if narrow else X0 + slot * STEP
         s.txt(title, GR_L, gy - 18, F13, C_DIM)
         s.txt(right, 314, gy - 18, F13, col, "TR")
-        s.rect(GR_L, gy, GR_W, gh, C_BG)
-        s.rect(GR_L, gy, GR_W, gh, C_LINE, fill=False)
+        s.rect(GR_L, gy, width, gh, C_BG)
+        s.rect(GR_L, gy, width, gh, C_LINE, fill=False)
         for k in range(1, 4):
             y = gy + gh * k // 4
-            for x in range(GR_L + 3, GR_L + GR_W - 2, 6): s.d.point((x, y), C_CARD)
+            for x in range(GR_L + 3, GR_L + width - 2, 6): s.d.point((x, y), C_CARD)
         for hh in range(6, 24, 6):
-            x = X0 + hh * 6 * STEP
+            x = graph_x(hh * 6)
             for y in range(gy + 3, gy + gh - 2, 5): s.d.point((x, y), C_CARD)
-        s.line(X0 + now * STEP, gy + 1, X0 + now * STEP, gy + gh - 2, C_LINE)
+        s.line(graph_x(now), gy + 1, graph_x(now), gy + gh - 2, C_LINE)
+        return graph_x
 
     def yax(gy, gh, a, b, c):
         s.txt(a, GR_L - 1, gy + 8, F13, C_DIM, "MR")
@@ -374,18 +419,30 @@ def scr7():
         prev = (x, y)
 
     # 3) SOC
-    frame(336, 60, "Stav nabití", "%d %%" % soc, C_BATT)
+    soc_x = frame(336, 60, "Stav nabití", "%d %%" % soc, C_BATT, 272, True)
     yax(336, 60, "100", "50", "0")
     prev = None
     for i in range(now):
         v = 45 + 33 * (1 / (1 + math.exp(-(i - 60) / 12.0)))
         y = 336 + 59 - int(v * 58 / 100)
-        x = X0 + i * STEP
+        x = soc_x(i)
         if prev: s.line(prev[0], prev[1], x, y, C_BATT)
         prev = (x, y)
+    prev = None
+    for i in range(now):
+        v = 25.0 + 1.4 * math.sin(i / 18.0) + 0.8 * (i / now)
+        y = 336 + 59 - int((v - 22.0) * 58 / 8.0)
+        x = soc_x(i)
+        if prev: s.line(prev[0], prev[1], x, y, C_LOAD)
+        prev = (x, y)
+    s.txt("30", 310, 344, F13, C_LOAD, "MC")
+    s.txt("26", 310, 366, F13, C_LOAD, "MC")
+    s.txt("22", 310, 388, F13, C_LOAD, "MC")
+    s.txt("SOC", 116, 318, F13, C_BATT)
+    s.txt("V", 154, 318, F13, C_LOAD)
 
     for hh in range(0, 25, 6):
-        x = min(max(X0 + hh * 6 * STEP, GR_L), GR_L + GR_W - 8)
+        x = min(max(soc_x(hh * 6), GR_L), GR_L + 272 - 8)
         s.txt(str(hh), x, 406, F13, C_DIM, "MC")
     chrome(s, 7); return s
 
@@ -396,7 +453,7 @@ def scr8temps():
     GR_L, GR_W, X0, STEP = 30, 288, 31, 2
     now = 86
 
-    def frame(gy, title, right, col, lo, hi, values):
+    def frame(gy, title, right, col, lo, hi, values, previous):
         gh = 120
         s.txt(title, GR_L, gy - 18, F13, C_DIM)
         s.txt(right, 314, gy - 18, F13, col, "TR")
@@ -404,6 +461,13 @@ def scr8temps():
         for k in range(1, 4):
             y = gy + gh * k // 4
             for x in range(GR_L + 3, GR_L + GR_W - 2, 6): s.d.point((x, y), C_CARD)
+        prev = None
+        for i in range(now):
+            v = previous(i)
+            x = X0 + i * STEP
+            y = gy + gh - 1 - int((v - lo) * (gh - 2) / (hi - lo))
+            if prev: s.line(prev[0], prev[1], x, y, C_DIM)
+            prev = (x, y)
         prev = None
         for i in range(now):
             v = values(i)
@@ -416,9 +480,11 @@ def scr8temps():
         s.txt(str(lo), GR_L - 1, gy + gh - 8, F13, C_DIM, "MR")
 
     frame(82, "Teplota měniče", "58.2 °C", C_PV, 0, 100,
-          lambda i: 47 + 12 * math.sin(i / 20.0))
+          lambda i: 47 + 12 * math.sin(i / 20.0),
+          lambda i: 42 + 10 * math.sin((i + 18) / 20.0))
     frame(272, "Venkovní teplota", "18.4 °C", C_WEATH, -20, 40,
-          lambda i: 11 + 8 * math.sin((i - 45) / 40.0))
+          lambda i: 11 + 8 * math.sin((i - 45) / 40.0),
+          lambda i: 8 + 7 * math.sin((i - 28) / 40.0))
     for hh in range(0, 25, 6):
         x = min(max(X0 + hh * 6 * STEP, GR_L), GR_L + GR_W - 8)
         s.txt(str(hh), x, 412, F13, C_DIM, "MC")
@@ -622,11 +688,20 @@ def scr_alerts():
     s = Screen()
     for i, (label, val) in enumerate([("SOC pod", "20 %"), ("Teplota nad", "70 °C"),
                                       ("Výpadek po", "2 min"), ("LED při chybě", "červená"),
-                                      ("Odběr ze sítě nad", "2.0 kW"), ("Po dobu", "30 min")]):
-        y = 48 + i * 48
-        s.panel(6, y, 308, 43)
-        s.txt(label, 100, y + 21, F13, C_TXT, "MC"); s.txt(val, 255, y + 21, F13, C_PV, "MC")
-    s.txt("Klepnutím na řádek změníte hodnotu", 160, 356, F13, C_DIM, "MC")
+                                      ("Odběr ze sítě nad", "2.0 kW"), ("Po dobu", "30 min"),
+                                      ("FV ikona nad", "30 V")]):
+        y = 46 + i * 42
+        s.panel(6, y, 308, 39)
+        s.txt(label, 100, y + 19, F13, C_TXT, "MC")
+        if i == 6:
+            s.rrect(198, y + 5, 32, 29, 6, C_PV, fill=False)
+            s.rrect(282, y + 5, 32, 29, 6, C_PV, fill=False)
+            s.txt("-", 214, y + 19, F13, C_PV, "MC")
+            s.txt(val, 256, y + 19, F13, C_PV, "MC")
+            s.txt("+", 298, y + 19, F13, C_PV, "MC")
+        else:
+            s.txt(val, 255, y + 19, F13, C_PV, "MC")
+    s.txt("Klepnutím na řádek změníte hodnotu", 160, 358, F13, C_DIM, "MC")
     chrome(s, 15); return s
 
 
@@ -665,7 +740,7 @@ def scr12():
     s.txt("Cabaj Tomáš  2026", W//2, 152, F13, C_TXT, "MC")
     sy, sh, sg = 176, 50, 6
     s.tile(6,   sy,       150, sh, "Deska", "ESP32-3248S035R", C_TXT, small=True)
-    s.tile(164, sy,       150, sh, "Firmware", "v2.00", C_PV, small=True)
+    s.tile(164, sy,       150, sh, "Firmware", "v2.03", C_PV, small=True)
     s.tile(6,   sy+sh+sg, 150, sh, "Flash", "4 MB", C_TXT, small=True)
     s.tile(164, sy+sh+sg, 150, sh, "RAM / NVS", "148 kB / 104", C_TXT, small=True)
 
@@ -713,10 +788,11 @@ def scr_roi():
 NAMES = ["00-prehled", "01-baterie", "02-dobeh", "03-solar", "04-sit-zatez",
          "06-menic", "05-pocasi", "07-grafy", "08-teploty", "09-historie",
          "10-uspory", "11-predikce", "16-dnes-vcera", "18-navratnost",
-         "14-chyby", "15-upozorneni", "12-nastaveni", "13-nastaveni2", "17-o-aplikaci"]
+         "14-chyby", "15-upozorneni", "12-nastaveni", "13-nastaveni2", "17-o-aplikaci",
+         "19-zivotnost-baterii"]
 FUNCS = [scr0, scr1, scr2, scr3, scr4, scr6, scr5, scr7, scr8temps, scr8,
          scr9, scr11forecast, scr_compare, scr_roi, scr_errors, scr_alerts,
-         scr10, scr11, scr12]
+         scr10, scr11, scr12, scr_battery_life]
 
 rendered = []
 for name, fn in zip(NAMES, FUNCS):

@@ -3,8 +3,20 @@
 Tento soubor obsahuje změny od posledního vydání firmwaru. Verze `FW_VERSION`
 se změní a na GitHubu vznikne release pouze na výslovný pokyn autora.
 
-## Nezařazeno do vydání
+## v2.03
 
+- Vysoké napětí FV je pouze stavová informace: při překročení nastaveného
+  prahu se zobrazí ikona na hlavní stránce. Nezapisuje se jako chyba,
+  nespouští blikání LED ani červené zvýraznění.
+- Komentáře firmwaru byly aktualizovány a doplněny česko-anglické popisy
+  hlavních funkcí, smyček a částí programu.
+
+- Hlavní přehled pod ukazatelem predikce zobrazuje roční úsporu ze stránky Úspory.
+- Teplotní grafy si uchovávají včerejší měnič a venkovní teplotu po 1 °C jako
+  úsporné osmibitové vzorky a kreslí je šedou linkou.
+- NVS ukládání je sloučené do verzovaných bloků pro denní historii, souhrny,
+  nastavení, chyby a včerejší data. Staré klíče zůstávají jako bezpečný fallback,
+  takže migrace nemaže žádná uložená data.
 - Animace půlkruhových ukazatelů je vypnutá; po načtení dat proběhne jen jedno
   překreslení bez několikanásobného blikání.
 - Ze stránky Nastavení odstraněn pomalý sken sítě včetně tlačítka a obsluhy;
@@ -85,6 +97,14 @@ se změní a na GitHubu vznikne release pouze na výslovný pokyn autora.
   průběžná data aktuálního měsíce.
 - Firmware a volná paměť byly odstraněny ze stránky Nastavení; údaje zůstávají
   na stránce O aplikaci spolu s kapacitou flash a volnými položkami NVS.
+
+## v2.02
+
+- Datum pořízení bateriové skupiny je vycentrované mezi názvem skupiny a cykly.
+- Každá skupina zobrazuje vlastní odhad roku výměny.
+- Přidána ovládací tlačítka `-1/+1`, přepínač kroku `1x/10x` a `-10/+10`.
+- Opraveno rozložení stránky Měnič, aby min/max nepřekrýval navigační tečky.
+- Do grafu SOC přidána modrá křivka napětí baterie s vlastní stupnicí.
 
 ## v2.01
 
